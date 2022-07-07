@@ -200,8 +200,8 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (message_payload: felt*) = alloc()
     assert message_payload[0] = REPAY
-    assert message_payload[1] = debt.amount_lent
-    assert message_payload[2] = borrower_l1
+    assert message_payload[1] = debt_id
+    assert message_payload[2] = debt.borrower_l1
 
     send_message_to_l1(
         to_address=L1_CONTRACT_ADDRESS,
@@ -270,7 +270,7 @@ func liquidate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
         let (message_payload: felt*) = alloc()
         assert message_payload[0] = LIQUIDATE
-        assert message_payload[1] = debt.amount_lent
+        assert message_payload[1] = debt_id
         assert message_payload[2] = liquidator_l1
 
         # release asset from l1 to liquidator

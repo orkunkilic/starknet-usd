@@ -33,6 +33,8 @@ contract Collateral {
 
     uint256 public constant MINT = 0; // mint l1_handler
 
+    mapping(uint256 => uint256) public debtAmounts;
+
     constructor(address _starknetContract, uint256 _borrowContract) {
         starknet = IStarknetCore(_starknetContract);
         borrowContract = _borrowContract;
@@ -51,12 +53,15 @@ contract Collateral {
         payload[3] = 5; // Interest Rate
 
         starknet.sendMessageToL2(borrowContract, MINT, payload);
+
+        debtAmounts[debtId] = amountLent;
+
         _debtIds.increment();
     }
 
     function consume(uint256[] calldata payload) public {
         starknet.consumeMessageFromL2(borrowContract, payload);
-        payable(address(uint160(payload[1]))).transfer(payload[2]); // repay or liquidation
+        payable(address(uint160(payload[2]))).transfer(debtAmounts[payload[1]]); // repay or liquidation
     }
 
     
