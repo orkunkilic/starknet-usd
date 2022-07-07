@@ -58,6 +58,12 @@ namespace IERC20:
     end
 end
 
+@contract_interface
+namespace IOracle:
+    func get_value(asset: felt) -> (price: Price):
+    end
+end
+
 
 struct Debt:
     member borrower: felt
@@ -73,6 +79,14 @@ struct Debt:
     member updated_at: felt
 end
 
+struct Price:
+    member asset: felt
+    member value: felt
+    member timestamp: felt
+    member publisher: felt
+    member type: felt
+end
+
 const sUSD_CONTRACT_ADDRESS = (0x0178a8866ef77a01df365b49d03fe46b8a90703e9fa1e10518277d12153b93d7) # mock
 
 const L1_CONTRACT_ADDRESS = (0x2Db8c2615db39a5eD8750B87aC8F217485BE11EC)
@@ -80,6 +94,8 @@ const REPAY = 0
 const LIQUIDATE = 1
 
 const ORACLE_CONTRACT_ADDRESS = (0x0178a8866ef77a01df365b49d03fe46b8a90703e9fa1e10518277d12153b93d7)
+const ETH = (19514442401534788)
+const BTC = (18669995996566340)
 
 @storage_var
 func debts(id: felt) -> (debt: Debt):
@@ -95,12 +111,20 @@ end
 
 
 
-func get_oracle_price{pedersen_ptr: HashBuiltin*, range_check_ptr}(asset_id: felt) -> (price: felt):
+func get_oracle_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(asset_id: felt) -> (price: felt):
     if asset_id == 0:
-        return (1010)
+        let (price) = IOracle.get_value(
+            contract_address = ORACLE_CONTRACT_ADDRESS,
+            asset = ETH
+        )
+        return (price.value)
     end
     if asset_id == 1:
-        return (5)
+        let (price) = IOracle.get_value(
+            contract_address = ORACLE_CONTRACT_ADDRESS,
+            asset = BTC
+        )
+        return (price.value)
     else:
         return (0)
     end
