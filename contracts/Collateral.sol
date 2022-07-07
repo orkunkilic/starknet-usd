@@ -30,8 +30,7 @@ contract Collateral {
 
     IStarknetCore public starknet;
     uint256 public borrowContract;
-
-    uint256 public constant MINT = 0; // mint l1_handler
+    uint256 public constant MINT = 0;
 
     mapping(uint256 => uint256) public debtAmounts;
 
@@ -43,14 +42,18 @@ contract Collateral {
 
     function collateralizeETH(uint256 borrowerL2, uint256 amountLent, uint256 amountBorrowed) public payable {
         require(msg.value == amountLent, "Insufficient ETH");
+        require(amountLent > amountBorrowed, "Amount lent must be greater than amount borrowed");
 
         uint256 debtId = _debtIds.current();
 
-        uint256[] memory payload = new uint256[](4);
-        payload[0] = borrowerL2;
-        payload[1] = amountLent;
-        payload[2] = amountBorrowed;
-        payload[3] = 5; // Interest Rate
+        uint256[] memory payload = new uint256[](7);
+        payload[0] = debtId;
+        payload[1] = borrowerL2;
+        payload[2] = uint256(uint160(msg.sender));
+        payload[3] = 0;
+        payload[4] = amountBorrowed;
+        payload[5] = amountLent;
+        payload[6] = 5; // Interest Rate
 
         starknet.sendMessageToL2(borrowContract, MINT, payload);
 
