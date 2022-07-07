@@ -62,7 +62,7 @@ contract Collateral {
         _debtIds.increment();
     }
 
-    function consume(uint256[] calldata payload) public {
+    function withdraw(uint256[] calldata payload) public {
         starknet.consumeMessageFromL2(borrowContract, payload);
         payable(address(uint160(payload[2]))).transfer(debtAmounts[payload[1]]); // repay or liquidation
     }
