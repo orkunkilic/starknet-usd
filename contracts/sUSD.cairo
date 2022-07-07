@@ -16,7 +16,7 @@ func constructor{
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }(owner: felt):
-    ERC20.initializer('StarkUSD', 'sUSD', 6)
+    ERC20.initializer('StarkUSD', 'sUSD', 18)
     Ownable.initializer(owner)
     return ()
 end

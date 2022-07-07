@@ -1,7 +1,7 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.math import assert_nn_le, assert_le
+from starkware.cairo.common.math import assert_nn_le, assert_le, assert_not_equal, split_felt
 from starkware.starknet.common.messages import send_message_to_l1
 from starkware.cairo.common.alloc import alloc
 from starkware.starknet.common.syscalls import (
@@ -16,7 +16,8 @@ from starkware.cairo.common.uint256 import (
     uint256_add,
     uint256_sub,
     split_64,
-    uint256_le
+    uint256_le,
+    uint256_unsigned_div_rem
 )
 
 @contract_interface
@@ -64,7 +65,6 @@ namespace IOracle:
     end
 end
 
-
 struct Debt:
     member borrower: felt
     member borrower_l1: felt
@@ -85,6 +85,32 @@ struct Price:
     member timestamp: felt
     member publisher: felt
     member type: felt
+end
+
+
+@event
+func Mint(
+    debt: Debt
+):
+end
+
+@event
+func Repay(
+    debt: Debt
+):
+end
+
+@event
+func Liquidate(
+    debt: Debt
+):
+end
+
+@event
+func Test(
+    low: Uint256,
+    high: Uint256
+):
 end
 
 const sUSD_CONTRACT_ADDRESS = (0x0178a8866ef77a01df365b49d03fe46b8a90703e9fa1e10518277d12153b93d7) # mock
@@ -110,7 +136,7 @@ func get_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
 end
 
 
-
+@external
 func get_oracle_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(asset_id: felt) -> (price: felt):
     if asset_id == 0:
         let (price) = IOracle.get_value(
@@ -132,7 +158,8 @@ func get_oracle_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 
 end
 
-@l1_handler
+#@l1_handler
+@external
 func mint{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
@@ -146,29 +173,34 @@ func mint{
     amount_lent: Uint256,
     interest_rate: Uint256
 ):
-    alloc_locals
 
     assert from_address = L1_CONTRACT_ADDRESS
 
     let (block_timestamp) = get_block_timestamp()
 
-    local new_debt: Debt
-    assert new_debt.borrower = borrower
-    assert new_debt.borrower_l1 = borrower_l1
-    assert new_debt.asset_id = asset_id
-    assert new_debt.amount_borrowed = amount_borrowed
-    assert new_debt.amount_lent = amount_lent
-    assert new_debt.interest_rate = interest_rate
-    assert new_debt.created_at = block_timestamp
-    assert new_debt.updated_at = block_timestamp
+    let new_debt = Debt(
+        borrower,
+        borrower_l1,
+        asset_id,
+        amount_borrowed,
+        amount_lent,
+        interest_rate,
+        Uint256(0,0),
+        0,
+        0,
+        block_timestamp,
+        block_timestamp
+    )
 
     debts.write(debt_id, new_debt)
 
-    IERC20.mint(
-        contract_address = sUSD_CONTRACT_ADDRESS,
-        to = borrower,
-        amount = amount_borrowed
-    )
+    #IERC20.mint(
+    #    contract_address = sUSD_CONTRACT_ADDRESS,
+    #    to = borrower,
+    #    amount = amount_borrowed
+    #)
+
+    Mint.emit(debt = new_debt)
 
     return ()
 end
@@ -181,6 +213,14 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (debt) = get_debt(debt_id)
 
+    with_attr error_message("Debt is liquidated."):
+        assert_not_equal(debt.is_liquated, 1)
+    end
+
+    with_attr error_message("Debt is already repaid."):
+        assert_not_equal(debt.is_paid, 1)
+    end
+
     let (caller) = get_caller_address()
 
     assert debt.borrower = caller
@@ -189,19 +229,23 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (contract_address) = get_contract_address()
 
-    let (local amount_repaid_l: Uint256, amount_repaid_h) = uint256_add(debt.amount_borrowed, Uint256(0, 20)) # MOCK
+    let (local interest_l: Uint256, interest_h) = uint256_add(Uint256(0, 100), debt.interest_rate)
 
-    IERC20.transferFrom(
-        contract_address = sUSD_CONTRACT_ADDRESS,
-        sender = caller,
-        recipient = contract_address,
-        amount = amount_repaid_l
-    )
+    let (local debt_l: Uint256, local debt_h: Uint256) = uint256_mul(debt.amount_borrowed, interest_l)
 
-    IERC20.burn(
-        contract_address = sUSD_CONTRACT_ADDRESS,
-        amount = debt.amount_borrowed
-    )
+    let (local debt_q: Uint256, local debt_r: Uint256) = uint256_unsigned_div_rem(debt_l, Uint256(0, 100))
+
+    #IERC20.transferFrom(
+    #    contract_address = sUSD_CONTRACT_ADDRESS,
+    #    sender = caller,
+    #    recipient = contract_address,
+    #    amount = debt_q
+    #)
+
+    #IERC20.burn(
+    #    contract_address = sUSD_CONTRACT_ADDRESS,
+    #    amount = debt.amount_borrowed
+    #)
 
     ## Send the rest to DAO
 
@@ -212,7 +256,7 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         debt.amount_borrowed,
         debt.amount_lent,
         debt.interest_rate,
-        amount_repaid_l,
+        debt_q,
         0,
         1,
         debt.created_at,
@@ -233,6 +277,8 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         payload=message_payload,
     )
 
+    Repay.emit(new_debt)
+
     return ()
 end
 
@@ -244,70 +290,89 @@ func liquidate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (debt) = get_debt(debt_id)
 
+    with_attr error_message("Debt is repaid."):
+        assert_not_equal(debt.is_paid, 1)
+    end
+
+    with_attr error_message("Debt is already liquidated."):
+        assert_not_equal(debt.is_liquated, 1)
+    end
+
     let (caller) = get_caller_address()
 
     let (oracle_price) = get_oracle_price(debt.asset_id)
 
-    let (oracle_price_l, oracle_price_h) = split_64(oracle_price)
+    let (oracle_price_h, oracle_price_l) = split_felt(oracle_price)
 
     local oracle_price_u: Uint256 = Uint256(oracle_price_l, oracle_price_h)
 
-    let (local liquidation_price_l: Uint256, local liquidation_price_h: Uint256) = uint256_mul(oracle_price_u, debt.amount_lent)
+    let (dec_h, dec_l) = split_felt(10 ** 18)
+
+    local dec_u: Uint256 = Uint256(dec_l, dec_h)
+
+    let (local oracle_price_q: Uint256, local oracle_price_r: Uint256) = uint256_unsigned_div_rem(oracle_price_u, dec_u)
+
+    let (local liquidation_price_l: Uint256, local liquidation_price_h: Uint256) = uint256_mul(oracle_price_q, debt.amount_lent)
     
-    #check if _l is correct
-    let (res) = uint256_le(liquidation_price_l, debt.amount_borrowed)
-    if res == 1:
+    let (local interest_l: Uint256, interest_h) = uint256_add(Uint256(0, 100), debt.interest_rate)
+
+    let (local debt_l: Uint256, local debt_h: Uint256) = uint256_mul(debt.amount_borrowed, interest_l)
+
+    let (local debt_q: Uint256, local debt_r: Uint256) = uint256_unsigned_div_rem(debt_l, Uint256(0, 100))
+    
+    let (res) = uint256_le(liquidation_price_l, debt_q)
+    
+    with_attr error_message("Cannot be liquidated."):
+        assert_not_equal(res, 0)
+    end
         
-        let (block_timestamp) = get_block_timestamp()
+    let (block_timestamp) = get_block_timestamp()
 
-        let (contract_address) = get_contract_address()
+    let (contract_address) = get_contract_address()
 
-        let (amount_repaid) = uint256_sub(debt.amount_borrowed, Uint256(0, 20)) # MOCK
+    #IERC20.transferFrom(
+    #    contract_address = sUSD_CONTRACT_ADDRESS,
+    #    sender = caller,
+    #    recipient = contract_address,
+    #    amount = debt.amount_borrowed
+    #)
 
-        IERC20.transferFrom(
-            contract_address = sUSD_CONTRACT_ADDRESS,
-            sender = caller,
-            recipient = contract_address,
-            amount = amount_repaid
-        )
+    #IERC20.burn(
+    #    contract_address = sUSD_CONTRACT_ADDRESS,
+    #    amount = debt.amount_borrowed
+    #)
 
-        IERC20.burn(
-            contract_address = sUSD_CONTRACT_ADDRESS,
-            amount = amount_repaid
-        )
+    let new_debt = Debt(
+        debt.borrower,
+        debt.borrower_l1,
+        debt.asset_id,
+        debt.amount_borrowed,
+        debt.amount_lent,
+        debt.interest_rate,
+        debt.amount_borrowed,
+        1,
+        0,
+        debt.created_at,
+        block_timestamp
+    )
 
-        let new_debt = Debt(
-            debt.borrower,
-            debt.borrower_l1,
-            debt.asset_id,
-            debt.amount_borrowed,
-            debt.amount_lent,
-            debt.interest_rate,
-            amount_repaid,
-            1,
-            0,
-            debt.created_at,
-            block_timestamp
-        )
+    debts.write(debt_id, new_debt)
 
-        debts.write(debt_id, new_debt)
+    let (message_payload: felt*) = alloc()
+    assert message_payload[0] = LIQUIDATE
+    assert message_payload[1] = debt_id
+    assert message_payload[2] = liquidator_l1
 
-        let (message_payload: felt*) = alloc()
-        assert message_payload[0] = LIQUIDATE
-        assert message_payload[1] = debt_id
-        assert message_payload[2] = liquidator_l1
+    # release asset from l1 to liquidator
+    send_message_to_l1(
+        to_address=L1_CONTRACT_ADDRESS,
+        payload_size=3,
+        payload=message_payload,
+    )
 
-        # release asset from l1 to liquidator
-        send_message_to_l1(
-            to_address=L1_CONTRACT_ADDRESS,
-            payload_size=3,
-            payload=message_payload,
-        )
+    Liquidate.emit(debt)
 
-        return ()
-    else:
-        return()
-    end 
+    return ()
 end
 
 @external
@@ -319,14 +384,26 @@ func test{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (caller) = get_caller_address()
 
-    local oracle_price = 1000
+    local oracle_price = 1010000000000000000000
 
-    let (oracle_price_l, oracle_price_h) = split_64(oracle_price)
+    let (oracle_price_h, oracle_price_l) = split_felt(oracle_price)
 
     local oracle_price_u: Uint256 = Uint256(oracle_price_l, oracle_price_h)
 
-    let (local liquidation_price_l: Uint256, local liquidation_price_h: Uint256) = uint256_mul(oracle_price_u, oracle_price_u)
+    let (dec_h, dec_l) = split_felt(10 ** 18)
+
+    local dec_u: Uint256 = Uint256(dec_l, dec_h)
+
+    let (local oracle_price_q: Uint256, local oracle_price_r: Uint256) = uint256_unsigned_div_rem(oracle_price_u, dec_u)
+
+    let (lent_h, lent_l) = split_felt(1000000000000000000000000)
+
+    local lent: Uint256 = Uint256(lent_l, lent_h)
     
+    let (local liquidation_price_l: Uint256, local liquidation_price_h: Uint256) = uint256_mul(oracle_price_q, lent)
+    
+    Test.emit(liquidation_price_l, liquidation_price_h)
+
     return (liquidation_price_l, liquidation_price_h)
 end
 
