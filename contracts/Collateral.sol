@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IStarknetCore {
     /**
@@ -24,7 +25,7 @@ interface IStarknetCore {
         external
         returns (bytes32);
 }
-contract Collateral {
+contract Collateral is Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _debtIds;
 
@@ -34,10 +35,13 @@ contract Collateral {
 
     mapping(uint256 => uint256) public debtAmounts;
 
-    constructor(address _starknetContract, uint256 _borrowContract) {
+    constructor(address _starknetContract) {
         starknet = IStarknetCore(_starknetContract);
-        borrowContract = _borrowContract;
         _debtIds.increment();
+    }
+
+    function setBorrowContract(uint256 _borrowContract) public onlyOwner {
+        borrowContract = _borrowContract;
     }
 
     function collateralizeETH(uint256 borrowerL2, uint256 amountLent, uint256 amountBorrowed) public payable {

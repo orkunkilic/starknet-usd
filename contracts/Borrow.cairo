@@ -113,7 +113,7 @@ func Test(
 ):
 end
 
-const sUSD_CONTRACT_ADDRESS = (0x0178a8866ef77a01df365b49d03fe46b8a90703e9fa1e10518277d12153b93d7) # mock
+const sUSD_CONTRACT_ADDRESS = (0x04b7d4255775b259b6f7b9f335d1bc1aaf206f9073a75c0cdf15a2274a499aec)
 
 const L1_CONTRACT_ADDRESS = (0x2Db8c2615db39a5eD8750B87aC8F217485BE11EC)
 const REPAY = 0
@@ -158,8 +158,8 @@ func get_oracle_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 
 end
 
-#@l1_handler
-@external
+#@external
+@l1_handler
 func mint{
     syscall_ptr: felt*, 
     pedersen_ptr: HashBuiltin*, 
@@ -194,11 +194,11 @@ func mint{
 
     debts.write(debt_id, new_debt)
 
-    #IERC20.mint(
-    #    contract_address = sUSD_CONTRACT_ADDRESS,
-    #    to = borrower,
-    #    amount = amount_borrowed
-    #)
+    IERC20.mint(
+        contract_address = sUSD_CONTRACT_ADDRESS,
+        to = borrower,
+        amount = amount_borrowed
+    )
 
     Mint.emit(debt = new_debt)
 
@@ -235,17 +235,17 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (local debt_q: Uint256, local debt_r: Uint256) = uint256_unsigned_div_rem(debt_l, Uint256(0, 100))
 
-    #IERC20.transferFrom(
-    #    contract_address = sUSD_CONTRACT_ADDRESS,
-    #    sender = caller,
-    #    recipient = contract_address,
-    #    amount = debt_q
-    #)
+    IERC20.transferFrom(
+        contract_address = sUSD_CONTRACT_ADDRESS,
+        sender = caller,
+        recipient = contract_address,
+        amount = debt_q
+    )
 
-    #IERC20.burn(
-    #    contract_address = sUSD_CONTRACT_ADDRESS,
-    #    amount = debt.amount_borrowed
-    #)
+    IERC20.burn(
+        contract_address = sUSD_CONTRACT_ADDRESS,
+        amount = debt.amount_borrowed
+    )
 
     ## Send the rest to DAO
 
@@ -330,17 +330,17 @@ func liquidate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (contract_address) = get_contract_address()
 
-    #IERC20.transferFrom(
-    #    contract_address = sUSD_CONTRACT_ADDRESS,
-    #    sender = caller,
-    #    recipient = contract_address,
-    #    amount = debt.amount_borrowed
-    #)
+    IERC20.transferFrom(
+        contract_address = sUSD_CONTRACT_ADDRESS,
+        sender = caller,
+        recipient = contract_address,
+        amount = debt.amount_borrowed
+    )
 
-    #IERC20.burn(
-    #    contract_address = sUSD_CONTRACT_ADDRESS,
-    #    amount = debt.amount_borrowed
-    #)
+    IERC20.burn(
+        contract_address = sUSD_CONTRACT_ADDRESS,
+        amount = debt.amount_borrowed
+    )
 
     let new_debt = Debt(
         debt.borrower,
