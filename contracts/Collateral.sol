@@ -31,7 +31,7 @@ contract Collateral is Ownable {
 
     IStarknetCore public starknet;
     uint256 public borrowContract;
-    uint256 public constant MINT = 0;
+    uint256 public constant MINT = 1329909728320632088402217562277154056711815095720684343816173432540100887380;
 
     mapping(uint256 => uint256) public debtAmounts;
 
@@ -46,7 +46,6 @@ contract Collateral is Ownable {
 
     function collateralizeETH(uint256 borrowerL2, uint256 amountLent, uint256 amountBorrowed) public payable {
         require(msg.value == amountLent, "Insufficient ETH");
-        require(amountLent > amountBorrowed, "Amount lent must be greater than amount borrowed");
 
         uint256 debtId = _debtIds.current();
 

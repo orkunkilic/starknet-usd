@@ -113,9 +113,9 @@ func Test(
 ):
 end
 
-const sUSD_CONTRACT_ADDRESS = (0x04b7d4255775b259b6f7b9f335d1bc1aaf206f9073a75c0cdf15a2274a499aec)
+const sUSD_CONTRACT_ADDRESS = (0x077cc95eef18c45ec39d0c72cbb1e88fe69bf69d2f2ed48fbc49a9297bf64d88)
 
-const L1_CONTRACT_ADDRESS = (0x2Db8c2615db39a5eD8750B87aC8F217485BE11EC)
+const L1_CONTRACT_ADDRESS = (0x9D0575aBb279609B31135b68eFE7C0FD3ec17Bfc)
 const REPAY = 0
 const LIQUIDATE = 1
 
@@ -169,22 +169,32 @@ func mint{
     borrower: felt,
     borrower_l1: felt,
     asset_id: felt,
-    amount_borrowed: Uint256,
-    amount_lent: Uint256,
-    interest_rate: Uint256
+    amount_borrowed: felt,
+    amount_lent: felt,
+    interest_rate: felt
 ):
+    alloc_locals
 
     assert from_address = L1_CONTRACT_ADDRESS
 
     let (block_timestamp) = get_block_timestamp()
 
+    let (borrow_h, borrow_l) = split_felt(amount_borrowed)
+    local borrow: Uint256 = Uint256(borrow_l, borrow_h)
+
+    let (lent_h, lent_l) = split_felt(amount_lent)
+    local lent: Uint256 = Uint256(lent_l, lent_h)
+
+    let (interest_h, interest_l) = split_felt(interest_rate)
+    local interest: Uint256 = Uint256(interest_l, interest_h)
+
     let new_debt = Debt(
         borrower,
         borrower_l1,
         asset_id,
-        amount_borrowed,
-        amount_lent,
-        interest_rate,
+        borrow,
+        lent,
+        interest,
         Uint256(0,0),
         0,
         0,
@@ -197,7 +207,7 @@ func mint{
     IERC20.mint(
         contract_address = sUSD_CONTRACT_ADDRESS,
         to = borrower,
-        amount = amount_borrowed
+        amount = borrow
     )
 
     Mint.emit(debt = new_debt)
