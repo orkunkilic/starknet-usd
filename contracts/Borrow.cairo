@@ -177,6 +177,12 @@ func mint{
 
     assert from_address = L1_CONTRACT_ADDRESS
 
+    let (debt) = get_debt(debt_id)
+
+    with_attr error_message("System Error: Debt is already exists."):
+        assert debt.borrower = 0
+    end
+
     let (block_timestamp) = get_block_timestamp()
 
     let (borrow_h, borrow_l) = split_felt(amount_borrowed)
@@ -223,6 +229,10 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (debt) = get_debt(debt_id)
 
+    with_attr error_message("Debt is not exists."):
+        assert_not_equal(debt.borrower, 0)
+    end
+
     with_attr error_message("Debt is liquidated."):
         assert_not_equal(debt.is_liquated, 1)
     end
@@ -233,7 +243,10 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (caller) = get_caller_address()
 
-    assert debt.borrower = caller
+    with_attr error_message("You are not the owner of this debt."):
+         assert debt.borrower = caller
+    end
+   
 
     let (block_timestamp) = get_block_timestamp()
 
@@ -299,6 +312,10 @@ func liquidate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     alloc_locals
 
     let (debt) = get_debt(debt_id)
+
+    with_attr error_message("Debt is not exists."):
+        assert_not_equal(debt.borrower, 0)
+    end
 
     with_attr error_message("Debt is repaid."):
         assert_not_equal(debt.is_paid, 1)

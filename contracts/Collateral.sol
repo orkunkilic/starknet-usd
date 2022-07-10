@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 interface IStarknetCore {
     /**
@@ -29,6 +30,8 @@ contract Collateral is Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _debtIds;
 
+    AggregatorV3Interface internal priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
+
     IStarknetCore public starknet;
     uint256 public borrowContract;
     uint256 public constant MINT = 1329909728320632088402217562277154056711815095720684343816173432540100887380;
@@ -46,6 +49,7 @@ contract Collateral is Ownable {
 
     function collateralizeETH(uint256 borrowerL2, uint256 amountLent, uint256 amountBorrowed) public payable {
         require(msg.value == amountLent, "Insufficient ETH");
+        require((amountLent * getLatestPrice()) / 10 ** 8 > amountBorrowed, "Insufficient collateral");
 
         uint256 debtId = _debtIds.current();
 
@@ -70,5 +74,9 @@ contract Collateral is Ownable {
         payable(address(uint160(payload[2]))).transfer(debtAmounts[payload[1]]); // repay or liquidation
     }
 
+    function getLatestPrice() internal view returns (uint256) {
+        (,int price,,,) = priceFeed.latestRoundData();
+        return uint256(price);
+    }
     
 }
