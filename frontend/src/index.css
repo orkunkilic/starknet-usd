@@ -11,3 +11,23 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+html, body {
+  height: 100%;
+  background-color: #ff4f0b !important;
+}
+
+.tab {
+  font-size: 32px !important;
+  color: rgb(190, 190, 190) !important;
+}
+
+
+.active-tab{
+  color: #fee !important;
+  font-weight: 500;
+}
+
+.active-tab::after{
+  background-color: #fee !important;
+}

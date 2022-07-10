@@ -5,31 +5,9 @@ import styled from 'styled-components';
 import { injected } from './utils/connectors';
 import { useEagerConnect, useInactiveListener } from './utils/hooks';
 import { Provider } from './utils/provider';
+import { Button, Text } from '@geist-ui/core';
+import CText from './CText';
 
-const StyledActivateDeactivateDiv = styled.div`
-  display: grid;
-  grid-template-rows: 1fr;
-  grid-template-columns: 1fr 1fr;
-  grid-gap: 10px;
-  place-self: center;
-  align-items: center;
-`;
-
-const StyledActivateButton = styled.button`
-  width: 150px;
-  height: 2rem;
-  border-radius: 1rem;
-  border-color: green;
-  cursor: pointer;
-`;
-
-const StyledDeactivateButton = styled.button`
-  width: 150px;
-  height: 2rem;
-  border-radius: 1rem;
-  border-color: red;
-  cursor: pointer;
-`;
 
 export default function Activate() {
     const context = useWeb3React();
@@ -63,37 +41,47 @@ export default function Activate() {
     useInactiveListener(!eagerConnectionSuccessful);
   
     return (
-        <>
-        <StyledActivateButton
-            disabled={active}
-            style={{
-            cursor: active ? 'not-allowed' : 'pointer',
-            borderColor: activating ? 'orange' : active ? 'unset' : 'green'
-            }}
-            onClick={handleActivate}
-        >
-            Connect Metamask
-        </StyledActivateButton>
-      <div>
-      {connectors.map((connector) =>
-        connector.available() ? (
-          <StyledActivateButton
-          key={connector.id()}
-          disabled={account}
-          style={{
-            cursor: active ? 'not-allowed' : 'pointer',
-            borderColor: activating ? 'orange' : active ? 'unset' : 'green'
-          }}
-          onClick={() => connect(connector)}
-        >
-          Connect {connector.name()}
-        </StyledActivateButton>
-        ) : null
-      )}
-      {!account && connectors.length == 0 ? <p>No Starknet Wallet available</p> : null}
-      {account ? <p>Starknet address -> {account}</p> : null}
-      {ethAccount ? <p>Ethereum address -> {ethAccount}</p> : null}
-    </div>
+      <>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 15
+        }}>
+          <Button
+              disabled={active}
+              onClick={handleActivate}
+              type="success"
+          >
+              Connect Metamask
+          </Button>
+
+        {connectors.map((connector) =>
+          connector.available() ? (
+            <Button
+            ml={1}
+            key={connector.id()}
+            disabled={account}
+            onClick={() => connect(connector)}
+            type="success"
+          >
+            Connect {connector.name()}
+          </Button>
+          ) : null
+        )}
+              </div>
+        {!account && connectors.length == 0 ? <CText>No Starknet Wallet available</CText> : null}
+        
+        {ethAccount ? <CText small mt={1}>Ethereum address: {ethAccount}</CText> : null}
+        {account ? <CText small>Starknet address: {account}</CText> : null}
+      </div>
     </>
     );
   }
