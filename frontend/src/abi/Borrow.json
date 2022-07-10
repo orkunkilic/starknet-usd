@@ -1,0 +1,242 @@
+[
+    {
+        "members": [
+            {
+                "name": "borrower",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "borrower_l1",
+                "offset": 1,
+                "type": "felt"
+            },
+            {
+                "name": "asset_id",
+                "offset": 2,
+                "type": "felt"
+            },
+            {
+                "name": "amount_borrowed",
+                "offset": 3,
+                "type": "Uint256"
+            },
+            {
+                "name": "amount_lent",
+                "offset": 5,
+                "type": "Uint256"
+            },
+            {
+                "name": "interest_rate",
+                "offset": 7,
+                "type": "Uint256"
+            },
+            {
+                "name": "amount_paid",
+                "offset": 9,
+                "type": "Uint256"
+            },
+            {
+                "name": "is_liquated",
+                "offset": 11,
+                "type": "felt"
+            },
+            {
+                "name": "is_paid",
+                "offset": 12,
+                "type": "felt"
+            },
+            {
+                "name": "created_at",
+                "offset": 13,
+                "type": "felt"
+            },
+            {
+                "name": "updated_at",
+                "offset": 14,
+                "type": "felt"
+            }
+        ],
+        "name": "Debt",
+        "size": 15,
+        "type": "struct"
+    },
+    {
+        "members": [
+            {
+                "name": "low",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "high",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Uint256",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "data": [
+            {
+                "name": "debt",
+                "type": "Debt"
+            }
+        ],
+        "keys": [],
+        "name": "Mint",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "debt",
+                "type": "Debt"
+            }
+        ],
+        "keys": [],
+        "name": "Repay",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "debt",
+                "type": "Debt"
+            }
+        ],
+        "keys": [],
+        "name": "Liquidate",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "low",
+                "type": "Uint256"
+            },
+            {
+                "name": "high",
+                "type": "Uint256"
+            }
+        ],
+        "keys": [],
+        "name": "Test",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "name": "id",
+                "type": "felt"
+            }
+        ],
+        "name": "get_debt",
+        "outputs": [
+            {
+                "name": "debt",
+                "type": "Debt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "asset_id",
+                "type": "felt"
+            }
+        ],
+        "name": "get_oracle_price",
+        "outputs": [
+            {
+                "name": "price",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "from_address",
+                "type": "felt"
+            },
+            {
+                "name": "debt_id",
+                "type": "felt"
+            },
+            {
+                "name": "borrower",
+                "type": "felt"
+            },
+            {
+                "name": "borrower_l1",
+                "type": "felt"
+            },
+            {
+                "name": "asset_id",
+                "type": "felt"
+            },
+            {
+                "name": "amount_borrowed",
+                "type": "Uint256"
+            },
+            {
+                "name": "amount_lent",
+                "type": "Uint256"
+            },
+            {
+                "name": "interest_rate",
+                "type": "Uint256"
+            }
+        ],
+        "name": "mint",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "debt_id",
+                "type": "felt"
+            }
+        ],
+        "name": "repay",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "debt_id",
+                "type": "felt"
+            },
+            {
+                "name": "liquidator_l1",
+                "type": "felt"
+            }
+        ],
+        "name": "liquidate",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "test",
+        "outputs": [
+            {
+                "name": "l",
+                "type": "Uint256"
+            },
+            {
+                "name": "h",
+                "type": "Uint256"
+            }
+        ],
+        "type": "function"
+    }
+]
