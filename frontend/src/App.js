@@ -10,12 +10,12 @@ function App() {
   const ethContext = useWeb3React();
   const starkContext = useStarknet();
 
-  const borrowContract = useContract({
+  const { contract: borrowContract } = useContract({
     abi: Borrow,
     address: '0x15c50afdb48e4350b5901a254344b86dab5c63bd67fe6fbe682a6696ad049f6',
   })
 
-  const { loading: txLoading, error: txError, reset: txReset, invoke: txInvoke } = useStarknetInvoke({
+  const { data: txData, loading: txLoading, error: txError, reset: txReset, invoke: txInvoke } = useStarknetInvoke({
     contract: borrowContract,
     method: 'repay'
   })
@@ -42,8 +42,9 @@ function App() {
   }, [starkContext.account, txInvoke, txReset])
 
   /* const repay = async () => {
-    const tx = await starkContract.repay(0)
+    const tx = txInvoke({ args: [0]})
     console.log(tx)
+    console.log(txData)
   } */
 
   useEffect(() => {
@@ -70,6 +71,7 @@ function App() {
     }
     {txLoading && <p>Loading...</p>}
     {txError && <p>Error: {txError}</p>}
+    {txData && <p>Error: {txData}</p>}
 
     { ethContext.account && starkContext.account && step === '0' && 
       <div>
