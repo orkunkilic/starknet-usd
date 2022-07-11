@@ -30,7 +30,8 @@ contract Collateral is Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _debtIds;
 
-    AggregatorV3Interface internal priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
+    // Chainlink Price Feed does not exists on Goerli.
+    // AggregatorV3Interface internal priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
 
     IStarknetCore public starknet;
     uint256 public borrowContract;
@@ -75,8 +76,11 @@ contract Collateral is Ownable {
     }
 
     function getLatestPrice() internal view returns (uint256) {
-        (,int price,,,) = priceFeed.latestRoundData();
-        return uint256(price);
+        //(,int price,,,) = priceFeed.latestRoundData();
+        //return uint256(price);
+
+        // mock price
+        return uint256(1100 * 10 ** 8);
     }
     
 }
