@@ -1,4 +1,4 @@
-import { useStarknet, useStarknetInvoke, useContract } from '@starknet-react/core';
+import { useStarknet, useStarknetInvoke, useContract, useStarknetCall } from '@starknet-react/core';
 import { useWeb3React } from '@web3-react/core';
 import { ethers } from 'ethers';
 import { useCallback, useEffect, useState } from 'react'
@@ -24,10 +24,39 @@ function App() {
     method: 'repay'
   })
 
+  const { data: liquidateData, loading: liquidateLoading, error: liquidateError, reset: liquidateReset, invoke: liquidateInvoke } = useStarknetInvoke({
+    contract: borrowContract,
+    method: 'liquidate'
+  })
+
+  
+  const [mintDebtId, setMintDebtId] = useState(null)
+  const [mintData, setMintData] = useState(null)
+  const [mintError, setMintError] = useState(null)
+  
+  const [withdrawData, setWithdrawData] = useState(null)
+  const [withdrawError, setWithdrawError] = useState(null)
+  
   const [liqDebtId, setLiqDebtId] = useState("");
+  
   const [repayDebtId, setRepayDebtId] = useState("");
+  
+  const [viewDebtId, setViewDebtId] = useState("");
+  
+  const { data: viewData, loading: viewLoading, error: viewError, refresh: viewRefresh} = useStarknetCall({
+    contract: borrowContract,
+    method: 'get_debt',
+    args: [viewDebtId],
+    options: {
+      watch: false
+    }
+  })
+  const [withdrawType, setWithdrawType] = useState("");
+  const [withdrawDebtId, setWithdrawDebtId] = useState("");
+
   const [lentAmount, setLentAmount] = useState("");
   const [borrowAmount, setBorrowAmount] = useState("");
+
   const [error, setError] = useState(null);
 
   const mint = async () => {
@@ -35,24 +64,57 @@ function App() {
 
     const collateralContract = new ethers.Contract("0x9D0575aBb279609B31135b68eFE7C0FD3ec17Bfc", Collateral.abi, signer);
 
-    const tx = await collateralContract.collateralizeETH(
-      starkContext.account, 
-      ethers.utils.parseEther(lentAmount), 
-      ethers.utils.parseEther(borrowAmount), 
-      { value: ethers.utils.parseEther(lentAmount)}
+    try {
+      const tx = await collateralContract.collateralizeETH(
+        starkContext.account, 
+        ethers.utils.parseEther(lentAmount), 
+        ethers.utils.parseEther(borrowAmount), 
+        { value: ethers.utils.parseEther(lentAmount)}
       );
+  
+      await tx.wait()
 
-    console.log(tx)
 
+      setMintData(tx.hash)
+    } catch (error) {
+      setMintError(error)
+    }
   } 
 
   const repay = useCallback(() => {
     repayReset()
     if(starkContext.account) {
-      repayInvoke({ args: [Number(repayDebtId)]})
+      repayInvoke({ args: [Number(repayDebtId)] })
     }
   }, [starkContext.account, repayInvoke, repayReset])
 
+  const liquidate = useCallback(() => {
+    liquidateReset()
+    if(starkContext.account && ethContext.account) {
+      liquidateInvoke({ args: [Number(liqDebtId), ethContext.account]})
+    }
+  }, [starkContext.account, liquidateInvoke, liquidateReset])
+
+  const withdraw = async () => {
+    const signer = ethContext.library.getSigner();
+
+    const collateralContract = new ethers.Contract("0x9D0575aBb279609B31135b68eFE7C0FD3ec17Bfc", Collateral.abi, signer);
+
+    // Convert address to uint256
+
+    try {
+      const tx = await collateralContract.withdraw(
+        [withdrawType, withdrawDebtId, parseInt(ethContext.account, 16).toString()]
+      );
+  
+      await tx.wait()
+
+
+      setWithdrawData(tx.hash)
+    } catch (error) {
+      setWithdrawError(error)
+    }
+  } 
   /* const repay = async () => {
     const tx = repayInvoke({ args: [0]})
     console.log(tx)
@@ -91,7 +153,7 @@ function App() {
       <Activate />
       {ethContext.account && starkContext.account && 
         <div style={{
-          width: '50%',
+          width: '80%',
         }}>
           <Tabs initialValue='1' hideDivider activeClassName='active-tab' hoverHeightRatio={0} hoverWidthRatio={0}>
             <Tabs.Item value='1' autoCapitalize='false' label='Mint sUSD'>
@@ -108,6 +170,8 @@ function App() {
                 <CText mt={1} small>sUSD amount to borrow: </CText>
                 <Input w={20} step='100' htmlType='number' placeholder='120' type='default' value={borrowAmount} onChange={(e) => setBorrowAmount(e.target.value)} />
                 <Button mt={1} type='success' onClick={mint}>Mint</Button>
+                {mintData && <CText mt={1}>Mint transaction hash: {mintData}. Your sUSD will be minted to your Starknet account soon.</CText>}
+                {mintError && <CText mt={1}>Mint error: {mintError}</CText>}
               </div>
             </Tabs.Item>
             <Tabs.Item value='2' label='Repay'>
@@ -121,6 +185,9 @@ function App() {
                 <CText mt={1} small>Debt Id: </CText>
                 <Input w={20} step='1' htmlType='number' placeholder='123' type='default' value={repayDebtId} onChange={(e) => setRepayDebtId(e.target.value)} />
                 <Button mt={1} type='success' onClick={repay}>Repay</Button>
+                {repayLoading && <CText>Loading...</CText>}
+                {repayError && <CText>Error: {repayError}</CText>}
+                {repayData && <CText>Success, please wait for L1 confirmation in order to withdraw from L1.</CText>}
               </div>
             </Tabs.Item>
             <Tabs.Item value='3' label='Liquidate'>
@@ -134,7 +201,45 @@ function App() {
                 <CText small>Liquidator Ethereum Address: {ethContext.account}</CText>
                 <CText mt={1} small>Debt Id: </CText>
                 <Input w={20} step='1' htmlType='number' placeholder='123' type='default' value={liqDebtId} onChange={(e) => setLiqDebtId(e.target.value)} />
-                <Button mt={1} type='success' onClick={mint}>Mint</Button>
+                <Button mt={1} type='success' onClick={liquidate}>Liquidate</Button>
+                {liquidateLoading && <CText>Loading...</CText>}
+                {liquidateError && <CText>Error: {liquidateError}</CText>}
+                {liquidateData && <CText>Success, please wait for L1 confirmation in order to withdraw from L1.</CText>}
+              </div>
+            </Tabs.Item>
+            <Tabs.Item value='4' label='View Debt'>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'start',
+                justifyContent: 'center',
+              }}>
+                <CText>View sUSD Debt Position</CText>
+                <CText mt={1} small>Debt Id: </CText>
+                <Input w={20} step='1' htmlType='number' placeholder='123' type='default' value={liqDebtId} onChange={(e) => setLiqDebtId(e.target.value)} />
+                <Button mt={1} type='success' onClick={viewRefresh}>View</Button>
+                {viewError && <CText>Error: {viewError}</CText>}
+                {viewData && <CText>{JSON.stringify(viewData)}</CText>}
+              </div>
+            </Tabs.Item>
+            <Tabs.Item value='5' label='Withdraw'>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'start',
+                justifyContent: 'center',
+              }}>
+                <CText>Withdraw L1 Money</CText>
+                <CText small>Withdraw Ethereum Address: {ethContext.account}</CText>
+                <Select mt={1} initialValue="0" value={withdrawType} onChange={(e) => setWithdrawType(e)}>
+                  <Select.Option value='0'>Repay Withdraw</Select.Option>
+                  <Select.Option value='1'>Liquidate Withdraw</Select.Option>
+                </Select>
+                <CText mt={1} small>Debt Id: </CText>
+                <Input w={20} step='1' htmlType='number' placeholder='123' type='default' value={withdrawDebtId} onChange={(e) => setWithdrawDebtId(e.target.value)} />
+                <Button mt={1} type='success' onClick={withdraw}>Withdraw</Button>
+                {withdrawError && <CText>Error: {JSON.stringify(withdrawError)}</CText>}
+                {withdrawData && <CText>Success!</CText>}
               </div>
             </Tabs.Item>
           </Tabs>

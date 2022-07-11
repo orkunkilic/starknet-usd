@@ -30,6 +30,9 @@ contract Collateral is Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _debtIds;
 
+    event Mint(uint256 debtId, uint256 amountBorrowed);
+    event Withdraw(uint256 debtId, uint256 withdrawType);
+
     // Chainlink Price Feed does not exists on Goerli.
     // AggregatorV3Interface internal priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
 
@@ -48,7 +51,7 @@ contract Collateral is Ownable {
         borrowContract = _borrowContract;
     }
 
-    function collateralizeETH(uint256 borrowerL2, uint256 amountLent, uint256 amountBorrowed) public payable {
+    function collateralizeETH(uint256 borrowerL2, uint256 amountLent, uint256 amountBorrowed) public payable returns(uint256) {
         require(msg.value == amountLent, "Insufficient ETH");
         require((amountLent * getLatestPrice()) / 10 ** 8 > amountBorrowed, "Insufficient collateral");
 
@@ -68,11 +71,17 @@ contract Collateral is Ownable {
         debtAmounts[debtId] = amountLent;
 
         _debtIds.increment();
+
+        emit Mint(debtId, amountBorrowed);
+
+        return debtId;
     }
 
     function withdraw(uint256[] calldata payload) public {
         starknet.consumeMessageFromL2(borrowContract, payload);
         payable(address(uint160(payload[2]))).transfer(debtAmounts[payload[1]]); // repay or liquidation
+
+        emit Withdraw(payload[1], payload[0]);
     }
 
     function getLatestPrice() internal view returns (uint256) {
