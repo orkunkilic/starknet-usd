@@ -30,7 +30,7 @@ contract Collateral is Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private _debtIds;
 
-    event Mint(uint256 debtId, uint256 amountBorrowed);
+    event Mint(uint256 debtId, uint256 amountBorrowed, bytes32 msgHash);
     event Withdraw(uint256 debtId, uint256 withdrawType);
 
     // Chainlink Price Feed does not exists on Goerli.
@@ -66,13 +66,13 @@ contract Collateral is Ownable {
         payload[5] = amountLent;
         payload[6] = 5; // Interest Rate
 
-        starknet.sendMessageToL2(borrowContract, MINT, payload);
+        bytes32 msgHash = starknet.sendMessageToL2(borrowContract, MINT, payload);
 
         debtAmounts[debtId] = amountLent;
 
         _debtIds.increment();
 
-        emit Mint(debtId, amountBorrowed);
+        emit Mint(debtId, amountBorrowed, msgHash);
 
         return debtId;
     }
