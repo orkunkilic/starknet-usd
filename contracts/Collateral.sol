@@ -64,7 +64,7 @@ contract Collateral is Ownable {
         payload[3] = 0;
         payload[4] = amountBorrowed;
         payload[5] = amountLent;
-        payload[6] = 5; // Interest Rate
+        payload[6] = 5; // Interest Rate that can be set by the DAO (?)
 
         bytes32 msgHash = starknet.sendMessageToL2(borrowContract, MINT, payload);
 

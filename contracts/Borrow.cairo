@@ -115,13 +115,13 @@ end
 
 const sUSD_CONTRACT_ADDRESS = (0x077cc95eef18c45ec39d0c72cbb1e88fe69bf69d2f2ed48fbc49a9297bf64d88)
 
-const L1_CONTRACT_ADDRESS = (0x9D0575aBb279609B31135b68eFE7C0FD3ec17Bfc)
+const L1_CONTRACT_ADDRESS = (0x9D0575aBb279609B31135b68eFE7C0FD3ec17Bfc) # Collateral contract on L1
 const REPAY = 0
 const LIQUIDATE = 1
 
-const ORACLE_CONTRACT_ADDRESS = (0x0178a8866ef77a01df365b49d03fe46b8a90703e9fa1e10518277d12153b93d7)
-const ETH = (19514442401534788)
-const BTC = (18669995996566340)
+const ORACLE_CONTRACT_ADDRESS = (0x0178a8866ef77a01df365b49d03fe46b8a90703e9fa1e10518277d12153b93d7) # Stork Price Feed Oracle
+const ETH = (19514442401534788) # ETH/USD
+const BTC = (18669995996566340) # BTC/USD
 
 @storage_var
 func debts(id: felt) -> (debt: Debt):
@@ -135,7 +135,7 @@ func get_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
     return (debt)
 end
 
-
+# Gets price of asset from Stork Price Feed
 @external
 func get_oracle_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(asset_id: felt) -> (price: felt):
     if asset_id == 0:
@@ -158,7 +158,7 @@ func get_oracle_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 
 end
 
-#@external
+# Mint function that can only be called by Collateral contract on L1
 @l1_handler
 func mint{
     syscall_ptr: felt*, 
@@ -221,6 +221,7 @@ func mint{
     return ()
 end
 
+# Repay function to close debt
 @external
 func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     debt_id: felt
@@ -270,7 +271,7 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         amount = debt.amount_borrowed
     )
 
-    ## Send the rest to DAO
+    ## TODO: Send the rest to DAO (?)
 
     let new_debt = Debt(
         debt.borrower,
@@ -305,6 +306,7 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     return ()
 end
 
+# Liquidate function that can be called by anyone if the position is not repaid
 @external
 func liquidate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     debt_id: felt, liquidator_l1: felt
@@ -401,36 +403,3 @@ func liquidate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     return ()
 end
-
-@external
-func test{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-) -> (l: Uint256, h: Uint256):
-    alloc_locals
-
-    #let (debt) = get_debt(debt_id)
-
-    let (caller) = get_caller_address()
-
-    local oracle_price = 1010000000000000000000
-
-    let (oracle_price_h, oracle_price_l) = split_felt(oracle_price)
-
-    local oracle_price_u: Uint256 = Uint256(oracle_price_l, oracle_price_h)
-
-    let (dec_h, dec_l) = split_felt(10 ** 18)
-
-    local dec_u: Uint256 = Uint256(dec_l, dec_h)
-
-    let (local oracle_price_q: Uint256, local oracle_price_r: Uint256) = uint256_unsigned_div_rem(oracle_price_u, dec_u)
-
-    let (lent_h, lent_l) = split_felt(1000000000000000000000000)
-
-    local lent: Uint256 = Uint256(lent_l, lent_h)
-    
-    let (local liquidation_price_l: Uint256, local liquidation_price_h: Uint256) = uint256_mul(oracle_price_q, lent)
-    
-    Test.emit(liquidation_price_l, liquidation_price_h)
-
-    return (liquidation_price_l, liquidation_price_h)
-end
-
