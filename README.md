@@ -1,15 +1,5 @@
-# Basic Sample Hardhat Project
+# Native Starknet USD With L1 Liquidity
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+Basic hardhat project with hardhat-starknet-plugin.
 
-Try running some of the following tasks:
-
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-node scripts/sample-script.js
-npx hardhat help
-```
+More info -> https://medium.com/@orkunmkilic/poc-native-starknet-usd-with-l1-liquidity-a827dc7759b6
