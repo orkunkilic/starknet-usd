@@ -113,9 +113,9 @@ func Test(
 ):
 end
 
-const sUSD_CONTRACT_ADDRESS = (0x077cc95eef18c45ec39d0c72cbb1e88fe69bf69d2f2ed48fbc49a9297bf64d88)
+#const sUSD_CONTRACT_ADDRESS = (0x077cc95eef18c45ec39d0c72cbb1e88fe69bf69d2f2ed48fbc49a9297bf64d88)
 
-const L1_CONTRACT_ADDRESS = (0x9D0575aBb279609B31135b68eFE7C0FD3ec17Bfc) # Collateral contract on L1
+#const L1_CONTRACT_ADDRESS = (0x9D0575aBb279609B31135b68eFE7C0FD3ec17Bfc) # Collateral contract on L1
 const REPAY = 0
 const LIQUIDATE = 1
 
@@ -124,7 +124,26 @@ const ETH = (19514442401534788) # ETH/USD
 const BTC = (18669995996566340) # BTC/USD
 
 @storage_var
+func susd_address() -> (address: felt):
+end
+
+@storage_var
+func l1_address() -> (address: felt):
+end
+
+@storage_var
 func debts(id: felt) -> (debt: Debt):
+end
+
+@constructor
+func constructor{
+        syscall_ptr: felt*,
+        pedersen_ptr: HashBuiltin*,
+        range_check_ptr
+    }(_susd_address: felt, _l1_address: felt):
+    susd_address.write(_susd_address)
+    l1_address.write(_l1_address)
+    return ()
 end
 
 @view
@@ -136,7 +155,6 @@ func get_debt{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
 end
 
 # Gets price of asset from Stork Price Feed
-@external
 func get_oracle_price{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(asset_id: felt) -> (price: felt):
     if asset_id == 0:
         let (price) = IOracle.get_value(
@@ -174,6 +192,9 @@ func mint{
     interest_rate: felt
 ):
     alloc_locals
+
+    let (L1_CONTRACT_ADDRESS) = l1_address.read()
+    let (sUSD_CONTRACT_ADDRESS) = susd_address.read()
 
     assert from_address = L1_CONTRACT_ADDRESS
 
@@ -227,6 +248,9 @@ func repay{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     debt_id: felt
 ):
     alloc_locals
+
+    let  (L1_CONTRACT_ADDRESS) = l1_address.read()
+    let (sUSD_CONTRACT_ADDRESS) = susd_address.read()
 
     let (debt) = get_debt(debt_id)
 
@@ -312,6 +336,9 @@ func liquidate{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     debt_id: felt, liquidator_l1: felt
 ):
     alloc_locals
+
+    let (L1_CONTRACT_ADDRESS) = l1_address.read()
+    let (sUSD_CONTRACT_ADDRESS) = susd_address.read()
 
     let (debt) = get_debt(debt_id)
 
